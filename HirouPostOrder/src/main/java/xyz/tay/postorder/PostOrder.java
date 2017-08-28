@@ -3,22 +3,16 @@ package xyz.tay.postorder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.kinesisanalytics.model.ResourceNotFoundException;
-import com.amazonaws.services.lambda.runtime.events.DynamodbEvent;
-import com.amazonaws.services.lambda.runtime.events.DynamodbEvent.DynamodbStreamRecord;
 
 public class PostOrder implements RequestHandler<Object, String> {
 	
@@ -32,21 +26,19 @@ public class PostOrder implements RequestHandler<Object, String> {
         
         HashMap<String, AttributeValue> itemValues = getObjectsFromJSON(input.toString(),context);
         final AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
-        
+        HashMap<String, String> responseMap = new HashMap<String, String>();
         try {
         	ddb.putItem(tableName, itemValues);
-        	return "{\"response\":\"succes\"";
+        	responseMap.put("response", "success");
         } catch(ResourceNotFoundException e) {
         	context.getLogger().log(e.getErrorMessage());
-        	return "{\"response\":" + e.getErrorMessage();
+        	responseMap.put("response", e.getErrorMessage());
         } catch(AmazonServiceException e) {
         	context.getLogger().log(e.getErrorMessage());
-        	return "{\"response\":" + e.getErrorMessage();
+        	responseMap.put("response", e.getErrorMessage());
         }
 
-        // TODO: implement your handler
-        //context.getLogger().log(itemValues.toString());
-        //return itemValues.toString();
+        return new JSONObject(responseMap).toString();
     }
     
     public HashMap<String, AttributeValue> getObjectsFromJSON(String input, Context context) {
@@ -61,9 +53,11 @@ public class PostOrder implements RequestHandler<Object, String> {
 	    		AttributeValue value = new AttributeValue();
 	    		if(obVal.getClass().isInstance(i)) {
 	    			value.setN(obVal.toString());
+	    			context.getLogger().log("Adding a this key, value pair: " + key + ":" + value);
 	    		}
 	    		else if(obVal.getClass().isInstance(key)) {
 	    			value.setS(obVal.toString());
+	    			context.getLogger().log("Adding a this key, value pair: " + key + ":" + value);
 	    		}
 	    		else {
 	    			String attemptedList = obVal.toString();
